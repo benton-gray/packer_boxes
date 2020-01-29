@@ -1,0 +1,86 @@
+---
+- name: "Installing Docker"
+  hosts: all
+  become: yes
+  pre_tasks:
+    - name: Removing docker utilities see --- https://docs.docker.com/install/linux/docker-ce/centos/
+      dnf:
+        name: "{{ item }}"
+        state: absent
+      loop:
+        - docker
+        - docker-client
+        - docker-client-latest
+        - docker-common
+        - docker-latest
+        - docker-latest-logrotate
+        - docker-logrotate
+        - docker-engine
+
+    - name: Install Packages
+      dnf:
+        name: git
+        state: installed
+
+    - block:
+        - name: Download Docker Packages
+          get_url:
+            url: "https://download.docker.com/linux/centos/7/x86_64/stable/Packages/{{ item }}"
+            dest: "/tmp/{{ item }}"
+          loop:
+            - containerd.io-1.2.6-3.3.el7.x86_64.rpm  
+            - docker-ce-cli-19.03.5-3.el7.x86_64.rpm 
+            - docker-ce-19.03.5-3.el7.x86_64.rpm 
+
+        - name: Install Docker Packages
+          dnf:
+            name: "/tmp/{{ item }}"
+            state: installed
+          loop:
+            - containerd.io-1.2.6-3.3.el7.x86_64.rpm
+            - docker-ce-cli-19.03.5-3.el7.x86_64.rpm 
+            - docker-ce-19.03.5-3.el7.x86_64.rpm 
+  tasks: 
+    - name: Make sure docker service is running
+      systemd: 
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Make sure we have a 'wheel' group
+      group:
+        name: wheel
+        state: present
+  
+    - name: Allow 'wheel' group to have passwordless sudo
+      lineinfile:
+        dest: /etc/sudoers
+        state: present
+        regexp: '^%wheel'
+        line: '%wheel ALL=(ALL) NOPASSWD: ALL'
+        validate: 'visudo -cf %s'
+  
+    - name: Add sudoers users to wheel group
+      user: 
+        append: yes 
+        groups: 
+          - docker 
+          - wheel
+        name: vagrant 
+        state: present 
+        uid: 1000
+
+    - name:
+      get_url:
+        url: "http://download.virtualbox.org/virtualbox/6.0.16/VBoxGuestAdditions_6.0.16.iso"
+        dest: "/tmp/VBoxGuestAdditions_6.0.16.iso"
+
+    - name: Mount guest additions drive
+      command:
+        cmd: "mount VBoxGuestAdditions_6.0.16.iso -o loop /mnt"
+        chdir: /tmp
+
+    - name: Run guest additions
+      command: 
+        cmd: "./VBoxLinuxAdditions.run --nox11" # required. The command module takes a free form command to run.  There is no parameter actually named 'free form'. See the examples!
+        chdir: /mnt

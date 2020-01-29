@@ -1,0 +1,23 @@
+{
+  "builders": [    
+    {
+      "type": "vagrant",
+      "source_path": "centos/8",
+      "provider": "virtualbox",
+      "communicator": "ssh",
+      "add_force": true,
+      "box_name": "benton-gray/centos-8"
+    }
+  ],
+  "provisioners": [
+    {
+      "type": "shell",
+      "script": "init.bash",
+      "expect_disconnect": true
+    },
+    {
+      "type": "ansible-local",
+      "playbook_file": "playbook.yml"
+    }
+  ]
+}
